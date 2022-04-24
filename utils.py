@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import torch
+from torch import nn
 from einops import rearrange
 import math
 
@@ -86,3 +87,38 @@ class figure_8(Dataset_2D):
         labels = rearrange(labels, 'h w -> (h w)')
 
         return data, labels
+
+class net(nn.Module):
+    """A dense neural network with ReLU activation functions. The structure argument is a tuple
+    whose n-th entry is the number of neurons in the n-th hidden layer.
+    """
+    def __init__(self, structure=(10, 10, 10)):
+        super(net, self).__init__()
+        self.structure = structure
+
+        self.layer_list = torch.nn.ModuleList()
+
+        self.layer_list.append(nn.Sequential(nn.Linear(2, structure[0], bias=False)))
+
+        for ii in range(len(self.structure)):
+            self.layer_list.append(
+                self.hidden_layer(self.structure[ii] , self.structure[ii], use_batch_norm=False)
+            )
+          
+        self.layer_list.append(nn.Sequential(nn.Linear(structure[-1], 2, bias=False)))
+
+
+    def hidden_layer(self,input, output, use_batch_norm=False):
+        linear = nn.Linear(input, output, bias=True)
+        relu = nn.ReLU()
+        bn = nn.BatchNorm1d(output)
+        if use_batch_norm:
+            return(nn.Sequential(linear, relu, bn))
+        else:
+            return(nn.Sequential(linear, relu))
+
+
+    def forward(self, x):
+        for layer in self.layer_list:
+            x = layer(x)
+        return x
