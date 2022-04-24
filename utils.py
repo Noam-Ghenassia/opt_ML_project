@@ -9,7 +9,7 @@ class Dataset_2D(ABC):
     n_points (int) : the number of samples in each class.
     """
 
-    def __init__(self, n_points):
+    def __init__(self, n_points=150):
         self.n_points = n_points
         self.data, self.labels = self._create_dataset()
         super().__init__()
@@ -40,40 +40,43 @@ class Dataset_2D(ABC):
 
 
 class figure_8(Dataset_2D):
-
+    """ This dataset consists of 2 classes : one of them consists of 2 circles with centers
+    on the x axis, at distance 5 from the origin. the second one is the interior of the circles.
+    """
     def __init__(self, n_points):
-        super().__init__(n_points)
+        super().__init__(int(math.ceil(n_points/2)))
     
-    def _create_dataset(self, plot=False):
+    def _create_dataset(self):
         
-        r11 = torch.abs(torch.random.normal(0, 1.6, self.n_points))
-        theta11 = torch.random.uniform(0, 2*math.pi, self.n_points)
+        #inner right (11)
+        r11 = torch.abs(1.6*torch.randn(self.n_points))
+        theta11 = 2*math.pi*torch.rand(self.n_points)
         x11 = r11*torch.cos(theta11)+5
         y11 = r11*torch.sin(theta11)
 
-        r12 = torch.abs(torch.random.normal(0, 1.6, self.n_points))
-        theta12 = torch.random.uniform(0, 2*math.pi, self.n_points)
+        r12 = torch.abs(1.6*torch.randn(self.n_points))
+        theta12 = 2*math.pi*torch.rand(self.n_points)
         x12 = r12*torch.cos(theta12)-5
         y12 = r12*torch.sin(theta12)
 
-        C11 = torch.transpose(torch.tensor([x11, y11]))
-        C12 = torch.transpose(torch.tensor([x12, y12]))
-        C1 = torch.cat([C11, C12], axis=0)
+        C11 = torch.unsqueeze(torch.transpose(torch.cat([x11, x12]), dim0=0, dim1=-1), dim=1)
+        C12 = torch.unsqueeze(torch.transpose(torch.cat([y11, y12]), dim0=0, dim1=-1), dim=1)
+        C1 = torch.cat([C11, C12], axis=-1)
         C1 = torch.cat([torch.zeros((2*self.n_points, 1)), C1], 1)
 
-        r21 = torch.random.normal(0, 1, self.n_points)+5
-        theta21 = torch.random.uniform(0, 2*math.pi, self.n_points)
+        r21 = 4+torch.abs(1.6*torch.randn(self.n_points))
+        theta21 = 2*math.pi*torch.rand(self.n_points)
         x21 = r21*torch.cos(theta21)+5
         y21 = r21*torch.sin(theta21)
 
-        r22 = torch.random.normal(0, 1, self.n_points)+5
-        theta22 = torch.random.uniform(0, 2*math.pi, self.n_points)
+        r22 = 4+torch.abs(1.6*torch.randn(self.n_points))
+        theta22 = 2*math.pi*torch.rand(self.n_points)
         x22 = r22*torch.cos(theta22)-5
         y22 = r22*torch.sin(theta22)
 
-        C21 = torch.transpose(torch.tensor([x21, y21]))
-        C22 = torch.transpose(torch.tensor([x22, y22]))
-        C2 = torch.cat([C21, C22], axis=0)
+        C21 = torch.unsqueeze(torch.transpose(torch.cat([x21, x22]), dim0=0, dim1=-1), dim=1)
+        C22 = torch.unsqueeze(torch.transpose(torch.cat([y21, y22]), dim0=0, dim1=-1), dim=1)
+        C2 = torch.cat([C21, C22], axis=-1)
         C2 = torch.cat([torch.ones((2*self.n_points, 1)), C2], 1)
 
         dataset = torch.cat([C1, C2], 0)
