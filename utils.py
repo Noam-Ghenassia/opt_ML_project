@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import torch
 from torch import nn
+from torch.optim import Adam
+import numpy as np
 from einops import rearrange
 import math
 
@@ -12,7 +14,7 @@ class Dataset_2D(ABC):
 
     def __init__(self, n_points=150):
         self.n_points = n_points
-        self.data, self.labels = self._create_dataset()
+        self.dataset = self._create_dataset()
         super().__init__()
     
     @abstractmethod
@@ -25,31 +27,35 @@ class Dataset_2D(ABC):
         Args:
             figure (matplotlib.axes.Axes): the pyplot figure on which the dataset is plotted.
         """
-        ind_0 = torch.nonzero(self.labels==0)
-        ind_1 = torch.nonzero(self.labels==1)
+        dataset = self.get_dataset()
+        data = dataset[:, 1:].float()
+        labels = dataset[:, :1].long()
+        labels = rearrange(labels, 'h w -> (h w)')
+        ind_0 = torch.nonzero(labels==0)
+        ind_1 = torch.nonzero(labels==1)
 
-        figure.plot(self.data[ind_0, 0], self.data[ind_0, 1], 'bo',
-                    self.data[ind_1, 0], self.data[ind_1, 1], 'ro')
+        figure.plot(data[ind_0, 0], data[ind_0, 1], 'bo',
+                    data[ind_1, 0], data[ind_1, 1], 'ro')
 
     def get_dataset(self):
         """Accessor method.
 
         Returns:
-            (torch.tensor, torch.tensor): the data and labels of the dataset.
+            (torch.tensor): a tensor with rows the datapoints, and columns the features.
+            the first column contains the labels.
         """
-        return self.data, self.labels
-
+        return self.dataset
 
 class figure_8(Dataset_2D):
     """ This dataset consists of 2 classes : one of them consists of 2 circles with centers
     on the x axis, at distance 5 from the origin. the second one is the interior of the circles.
     """
     def __init__(self, n_points):
-        super().__init__(int(math.ceil(n_points/2)))
+        super().__init__(int(math.ceil(n_points/4)))
     
     def _create_dataset(self):
         
-        #inner right (11)
+        # class 0
         r11 = torch.abs(1.6*torch.randn(self.n_points))
         theta11 = 2*math.pi*torch.rand(self.n_points)
         x11 = r11*torch.cos(theta11)+5
@@ -65,6 +71,7 @@ class figure_8(Dataset_2D):
         C1 = torch.cat([C11, C12], axis=-1)
         C1 = torch.cat([torch.zeros((2*self.n_points, 1)), C1], 1)
 
+        # class 1
         r21 = 4+torch.abs(1.6*torch.randn(self.n_points))
         theta21 = 2*math.pi*torch.rand(self.n_points)
         x21 = r21*torch.cos(theta21)+5
@@ -80,13 +87,11 @@ class figure_8(Dataset_2D):
         C2 = torch.cat([C21, C22], axis=-1)
         C2 = torch.cat([torch.ones((2*self.n_points, 1)), C2], 1)
 
+        # full dataset
         dataset = torch.cat([C1, C2], 0)
         dataset = dataset[torch.randperm(dataset.size()[0])]
-        data = dataset[:, 1:].float()
-        labels = dataset[:, :1].long()
-        labels = rearrange(labels, 'h w -> (h w)')
-
-        return data, labels
+        self.n_points = dataset.shape[0]
+        return dataset
 
 class net(nn.Module):
     """A dense neural network with ReLU activation functions. The structure argument is a tuple
@@ -97,7 +102,7 @@ class net(nn.Module):
         self.structure = structure
 
         self.layer_list = torch.nn.ModuleList()
-
+        print("structure [0] : ", structure[0], type(structure[0]))
         self.layer_list.append(nn.Sequential(nn.Linear(2, structure[0], bias=False)))
 
         for ii in range(len(self.structure)):
@@ -122,3 +127,62 @@ class net(nn.Module):
         for layer in self.layer_list:
             x = layer(x)
         return x
+    
+    def make_batches(self, dataset, batch_size=32):
+        """This method returns a list containing batches sampled randomly from the
+        dataset, with the indicated batch size (except for the last batch, which
+        might be smaller"""
+
+        n_points = dataset.shape[0]
+        remainder = n_points % batch_size
+        num_full_batches = (n_points - remainder)/batch_size
+        perm_dataset = dataset[torch.randperm(dataset.size()[0])]
+        batches_list = []
+        for batch in range(int(num_full_batches)):
+            batches_list.append(perm_dataset[batch:batch+batch_size, :])
+        batches_list.append(perm_dataset[-remainder-1:-1, :])
+        return batches_list
+
+    def train(self, dataset, n_epochs):
+        """This method allows to train the neural network with the Adam optimizer."""
+        criterion = nn.CrossEntropyLoss()
+        optimizer = Adam(self.parameters())
+
+        for epoch in range(n_epochs):
+
+            if epoch % 30 == 0:
+                print("epoch : ", epoch)
+
+            batches = self.make_batches(dataset)
+            for batch in batches :
+                data = batch[:, 1:].float()
+                labels = batch[:, :1].long()
+                labels = rearrange(labels, 'h w -> (h w)')
+
+                optimizer.zero_grad()
+                out = self.forward(data)
+                loss = criterion(out, labels)
+                loss.backward()
+                optimizer.step()
+    
+    def plot_decision_boundary(self, ax, x_min=-10., x_max=10., y_min=-10., y_max=10.):
+        """This function allows to plot the network's decision boundary on a given figure.
+        Args:
+            ax (matplotlib.axes.Axes): the pyplot figure on which the dataset is plotted.
+            x_min (float, optional): lower bound of the x axis of the plot. Defaults to -10..
+            x_max (float, optional): high bound of the x axis of the plot. Defaults to 10..
+            y_min (float, optional): lower bound of the y axis of the plot. Defaults to -10..
+            y_max (float, optional): high bound of the y axis of the plot. Defaults to 10..
+        """
+        x = np.linspace(x_min, x_max, 220)
+        y = np.linspace(y_min, y_max, 220)
+        grid_x = np.meshgrid(x, y)[0].reshape(-1, 1)
+        grid_y = np.meshgrid(x, y)[1].reshape(-1, 1)
+        grid = np.concatenate([grid_x, grid_y], axis=1)
+
+        grid = torch.tensor(np.expand_dims(grid, axis=1))
+        out = self.forward(self.params, grid)
+        out = torch.squeeze(out, axis=1)
+        out = nn.Softmax(out, axis=1)[: , 1].reshape(len(x), -1).numpy()
+        
+        ax.contourf(np.meshgrid(x, y)[0], np.meshgrid(x, y)[1], out)
