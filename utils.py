@@ -165,7 +165,7 @@ class net(nn.Module):
                 loss.backward()
                 optimizer.step()
     
-    def plot_decision_boundary(self, ax, x_min=-10., x_max=10., y_min=-10., y_max=10.):
+    def plot_decision_boundary(self, ax, x_min=-15., x_max=15., y_min=-10., y_max=10.):
         """This function allows to plot the network's decision boundary on a given figure.
         Args:
             ax (matplotlib.axes.Axes): the pyplot figure on which the dataset is plotted.
@@ -180,9 +180,10 @@ class net(nn.Module):
         grid_y = np.meshgrid(x, y)[1].reshape(-1, 1)
         grid = np.concatenate([grid_x, grid_y], axis=1)
 
-        grid = torch.tensor(np.expand_dims(grid, axis=1))
-        out = self.forward(self.params, grid)
+        grid = torch.tensor(np.expand_dims(grid, axis=1)).float()
+        out = self.forward(grid)
         out = torch.squeeze(out, axis=1)
-        out = nn.Softmax(out, axis=1)[: , 1].reshape(len(x), -1).numpy()
+        out = nn.Softmax(dim=1)(out)
+        out = out[: , 1].reshape(len(x), -1).detach().numpy()
         
         ax.contourf(np.meshgrid(x, y)[0], np.meshgrid(x, y)[1], out)
