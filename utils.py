@@ -72,7 +72,7 @@ class figure_8(Dataset_2D):
         C1 = torch.cat([torch.zeros((2*self.n_points, 1)), C1], 1)
 
         # class 1
-        r21 = 4+torch.abs(1.6*torch.randn(self.n_points))
+        r21 = 4+torch.abs(1.6*torch.randn(self.n_points))   # abs ?
         theta21 = 2*math.pi*torch.rand(self.n_points)
         x21 = r21*torch.cos(theta21)+5
         y21 = r21*torch.sin(theta21)
@@ -102,7 +102,7 @@ class net(nn.Module):
         self.structure = structure
 
         self.layer_list = torch.nn.ModuleList()
-        print("structure [0] : ", structure[0], type(structure[0]))
+        #print("structure [0] : ", structure[0], type(structure[0]))
         self.layer_list.append(nn.Sequential(nn.Linear(2, structure[0], bias=False)))
 
         for ii in range(len(self.structure)):

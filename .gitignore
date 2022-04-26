@@ -11,6 +11,9 @@
 !.vscode/extensions.json
 !.vscode/*.code-snippets
 _pycache_/
+settings.json
+test.cpython-39.pyc
+utils.cpython-39.pyc
 
 # Local History for Visual Studio Code
 .history/
