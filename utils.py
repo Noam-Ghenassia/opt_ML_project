@@ -5,6 +5,7 @@ from torch.optim import Adam
 import numpy as np
 from einops import rearrange
 import math
+from collections import defaultdict
 
 class Dataset_2D(ABC):
     """Abstract class for 2-classes datasets in 2 dimensions.
@@ -50,18 +51,19 @@ class figure_8(Dataset_2D):
     """ This dataset consists of 2 classes : one of them consists of 2 circles with centers
     on the x axis, at distance 5 from the origin. the second one is the interior of the circles.
     """
-    def __init__(self, n_points):
+    def __init__(self, n_points, var):
+        self.var = var
         super().__init__(int(math.ceil(n_points/4)))
     
     def _create_dataset(self):
         
         # class 0
-        r11 = torch.abs(1.6*torch.randn(self.n_points))
+        r11 = torch.abs(torch.normal(0, self.var**0.5, size = (1,self.n_points)).squeeze())
         theta11 = 2*math.pi*torch.rand(self.n_points)
         x11 = r11*torch.cos(theta11)+5
         y11 = r11*torch.sin(theta11)
 
-        r12 = torch.abs(1.6*torch.randn(self.n_points))
+        r12 = torch.abs(torch.normal(0, self.var**0.5, size = (1,self.n_points)).squeeze())
         theta12 = 2*math.pi*torch.rand(self.n_points)
         x12 = r12*torch.cos(theta12)-5
         y12 = r12*torch.sin(theta12)
@@ -72,12 +74,12 @@ class figure_8(Dataset_2D):
         C1 = torch.cat([torch.zeros((2*self.n_points, 1)), C1], 1)
 
         # class 1
-        r21 = 4+torch.abs(1.6*torch.randn(self.n_points))   # abs ?
+        r21 = 4+torch.abs(torch.normal(0, self.var**0.5, size = (1,self.n_points)).squeeze())   # abs ?
         theta21 = 2*math.pi*torch.rand(self.n_points)
         x21 = r21*torch.cos(theta21)+5
         y21 = r21*torch.sin(theta21)
 
-        r22 = 4+torch.abs(1.6*torch.randn(self.n_points))
+        r22 = 4+torch.abs(torch.normal(0, self.var**0.5, size = (1,self.n_points)).squeeze())
         theta22 = 2*math.pi*torch.rand(self.n_points)
         x22 = r22*torch.cos(theta22)-5
         y22 = r22*torch.sin(theta22)
@@ -121,6 +123,10 @@ class net(nn.Module):
             return(nn.Sequential(linear, relu, bn))
         else:
             return(nn.Sequential(linear, relu))
+    
+    def reset(self):
+        for layer in self.children():
+            layer.reset_parameters()
 
 
     def forward(self, x):
@@ -150,8 +156,8 @@ class net(nn.Module):
 
         for epoch in range(n_epochs):
 
-            if epoch % 30 == 0:
-                print("epoch : ", epoch)
+            #if epoch % 30 == 0:
+                #print("epoch : ", epoch)
 
             batches = self.make_batches(dataset)
             for batch in batches :
@@ -164,6 +170,78 @@ class net(nn.Module):
                 loss = criterion(out, labels)
                 loss.backward()
                 optimizer.step()
+    
+    def ASAM_train(self, dataset, n_epochs):
+        """This method allows to train the neural network with the Adam optimizer and Asam minimizer."""
+        #Essayer de mettre le learning rate schedulter (mis dans exemple samsung)
+        #Essayer de mettre modet.train() (Possible que ce soit non négligable, apparement permet de mettre layer en training mode)
+
+        criterion = nn.CrossEntropyLoss()
+        optimizer = Adam(self.parameters())
+        minimizer = ASAM(optimizer, self, 0.5, 0.01) #Le model c'est la structure du NN
+
+        for epoch in range(n_epochs):
+
+            batches = self.make_batches(dataset)
+            for batch in batches :
+                data = batch[:, 1:].float()
+                labels = batch[:, :1].long()
+                labels = rearrange(labels, 'h w -> (h w)')
+
+                #optimizer.zero_grad()
+                
+                #Ascent Step
+                out = self.forward(data)
+                loss = criterion(out, labels)   # batch_loss.mean().backward() (Dans exemple, pk mean ?)
+                loss.backward()
+                minimizer.ascent_step()
+
+                # Descent Step
+                criterion(self.forward(data), labels).backward() #criterion(model(inputs), targets).mean().backward()
+                minimizer.descent_step()
+
+    def SAM_train(self, dataset, n_epochs):
+        """This method allows to train the neural network with the Adam optimizer and Sam minimizer."""
+        criterion = nn.CrossEntropyLoss()
+        optimizer = Adam(self.parameters())
+        minimizer = SAM(optimizer, self, 0.5, 0.01) #Le model c'est la structure du NN
+
+        for epoch in range(n_epochs):
+
+            batches = self.make_batches(dataset)
+            for batch in batches :
+                data = batch[:, 1:].float()
+                labels = batch[:, :1].long()
+                labels = rearrange(labels, 'h w -> (h w)')
+
+                #optimizer.zero_grad()
+                
+                #Ascent Step
+                out = self.forward(data)
+                loss = criterion(out, labels)
+                loss.backward()
+                minimizer.ascent_step()
+
+                # Descent Step
+                criterion(self.forward(data), labels).backward()
+                minimizer.descent_step()
+
+
+
+    
+    def test(self, dataset):
+        """"This method is to calculate the test error"""
+        with torch.no_grad():
+            criterion = nn.CrossEntropyLoss()
+            data = dataset[:, 1:].float()
+            labels = dataset[:, :1].long()
+            labels = rearrange(labels, 'h w -> (h w)')
+
+            out = self.forward(data)
+            loss = criterion(out, labels)
+
+            return float(loss)
+
     
     def plot_decision_boundary(self, ax, x_min=-15., x_max=15., y_min=-10., y_max=10.):
         """This function allows to plot the network's decision boundary on a given figure.
@@ -187,3 +265,70 @@ class net(nn.Module):
         out = out[: , 1].reshape(len(x), -1).detach().numpy()
         
         ax.contourf(np.meshgrid(x, y)[0], np.meshgrid(x, y)[1], out)
+
+class ASAM:
+    def __init__(self, optimizer, model, rho=0.5, eta=0.01):
+        self.optimizer = optimizer
+        self.model = model
+        self.rho = rho
+        self.eta = eta
+        self.state = defaultdict(dict)
+
+    @torch.no_grad()
+    def ascent_step(self):
+        wgrads = []
+        for n, p in self.model.named_parameters():
+            if p.grad is None:
+                continue
+            t_w = self.state[p].get("eps")
+            if t_w is None:
+                t_w = torch.clone(p).detach()
+                self.state[p]["eps"] = t_w
+            if 'weight' in n:
+                t_w[...] = p[...]
+                t_w.abs_().add_(self.eta)
+                p.grad.mul_(t_w)
+            wgrads.append(torch.norm(p.grad, p=2))
+        wgrad_norm = torch.norm(torch.stack(wgrads), p=2) + 1.e-16
+        for n, p in self.model.named_parameters():
+            if p.grad is None:
+                continue
+            t_w = self.state[p].get("eps")
+            if 'weight' in n:
+                p.grad.mul_(t_w)
+            eps = t_w
+            eps[...] = p.grad[...]
+            eps.mul_(self.rho / wgrad_norm)
+            p.add_(eps)
+        self.optimizer.zero_grad()
+
+    @torch.no_grad()
+    def descent_step(self):
+        for n, p in self.model.named_parameters():
+            if p.grad is None:
+                continue
+            p.sub_(self.state[p]["eps"])
+        self.optimizer.step()
+        self.optimizer.zero_grad()
+
+
+class SAM(ASAM):
+    @torch.no_grad()
+    def ascent_step(self):
+        grads = []
+        for n, p in self.model.named_parameters():
+            if p.grad is None:
+                continue
+            grads.append(torch.norm(p.grad, p=2))
+        grad_norm = torch.norm(torch.stack(grads), p=2) + 1.e-16
+        for n, p in self.model.named_parameters():
+            if p.grad is None:
+                continue
+            eps = self.state[p].get("eps")
+            if eps is None:
+                eps = torch.clone(p).detach()
+                self.state[p]["eps"] = eps
+            eps[...] = p.grad[...]
+            eps.mul_(self.rho / grad_norm)
+            p.add_(eps)
+        self.optimizer.zero_grad()
