@@ -182,6 +182,8 @@ class net(nn.Module):
 
         for epoch in range(n_epochs):
 
+            self.train() #ATTENTION
+
             batches = self.make_batches(dataset)
             for batch in batches :
                 data = batch[:, 1:].float()
@@ -193,11 +195,11 @@ class net(nn.Module):
                 #Ascent Step
                 out = self.forward(data)
                 loss = criterion(out, labels)   # batch_loss.mean().backward() (Dans exemple, pk mean ?)
-                loss.backward()
+                loss.mean().backward() #attention j'ai ajouté le .mean()
                 minimizer.ascent_step()
 
                 # Descent Step
-                criterion(self.forward(data), labels).backward() #criterion(model(inputs), targets).mean().backward()
+                criterion(self.forward(data), labels).mean().backward() #criterion(model(inputs), targets).mean().backward()
                 minimizer.descent_step()
 
     def SAM_train(self, dataset, n_epochs):
@@ -205,6 +207,8 @@ class net(nn.Module):
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(self.parameters())
         minimizer = SAM(optimizer, self, 0.5, 0.01) #Le model c'est la structure du NN
+
+        self.train()  #Attention
 
         for epoch in range(n_epochs):
 
@@ -219,11 +223,11 @@ class net(nn.Module):
                 #Ascent Step
                 out = self.forward(data)
                 loss = criterion(out, labels)
-                loss.backward()
-                minimizer.ascent_step()
+                loss.mean().backward()
+                minimizer.ascent_step() #attention j'ai ajouté le .mean()
 
                 # Descent Step
-                criterion(self.forward(data), labels).backward()
+                criterion(self.forward(data), labels).mean().backward() #attention j'ai ajouté le .mean()
                 minimizer.descent_step()
 
 
