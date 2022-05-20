@@ -104,7 +104,10 @@ class net(nn.Module):
         self.structure = structure
 
         self.layer_list = torch.nn.ModuleList()
-        #print("structure [0] : ", structure[0], type(structure[0]))
+        # add a class attribute containing only the hidden layers, that is later
+        # used for teleportations.
+        self.hidden_layers_list = torch.nn.ModuleList()
+
         self.layer_list.append(nn.Sequential(nn.Linear(2, structure[0], bias=False)))
 
         for ii in range(len(self.structure)):
@@ -113,6 +116,10 @@ class net(nn.Module):
             )
           
         self.layer_list.append(nn.Sequential(nn.Linear(structure[-1], 2, bias=False)))
+
+
+        for layer in range(len(self.layer_list)-1) :
+            self.hidden_layers_list.append(self.layer_list[layer])
 
 
     def hidden_layer(self,input, output, use_batch_norm=False):
@@ -336,3 +343,4 @@ class SAM(ASAM):
             eps.mul_(self.rho / grad_norm)
             p.add_(eps)
         self.optimizer.zero_grad()
+
