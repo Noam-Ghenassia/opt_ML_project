@@ -6,6 +6,7 @@ import numpy as np
 from einops import rearrange
 import math
 from collections import defaultdict
+import copy
 
 class Dataset_2D(ABC):
     """Abstract class for 2-classes datasets in 2 dimensions.
@@ -100,7 +101,8 @@ class net(nn.Module):
     whose n-th entry is the number of neurons in the n-th hidden layer.
     """
     def __init__(self, structure=(10, 10, 10)):
-        super(net, self).__init__()
+        #super(net, self).__init__()
+        super().__init__()
         self.structure = structure
 
         self.layer_list = torch.nn.ModuleList()
@@ -277,6 +279,10 @@ class net(nn.Module):
         
         ax.contourf(np.meshgrid(x, y)[0], np.meshgrid(x, y)[1], out)
 
+
+###############################################################################
+###############################################################################
+
 class ASAM:
     def __init__(self, optimizer, model, rho=0.5, eta=0.01):
         self.optimizer = optimizer
@@ -285,8 +291,22 @@ class ASAM:
         self.eta = eta
         self.state = defaultdict(dict)
 
+    def loss(self, data, labels, criterion):
+        model_clone = copy.deepcopy(self.model)
+        out = self.model.forward(data)
+        loss = criterion(out, torch.squeeze(labels, dim=1).long())
+        #loss.mean().backward()
+        loss.backward()
+        ascented_params = self.ascent_step(return_result_of_ascent=True)
+        self.model.zero_grad()
+        for name, params in model_clone.named_parameters():
+            params.data.copy_(ascented_params[name])
+        preds = model_clone(data)
+        return criterion(preds, torch.squeeze(labels, dim=1).long())
+
     @torch.no_grad()
-    def ascent_step(self):
+    #def ascent_step(self):
+    def ascent_step(self, return_result_of_ascent=False):
         wgrads = []
         for n, p in self.model.named_parameters():
             if p.grad is None:
@@ -294,13 +314,21 @@ class ASAM:
             t_w = self.state[p].get("eps")
             if t_w is None:
                 t_w = torch.clone(p).detach()
-                self.state[p]["eps"] = t_w
+                self.state[p]["eps"] = t_w      # comment this one ?
             if 'weight' in n:
                 t_w[...] = p[...]
                 t_w.abs_().add_(self.eta)
+                print('jhb ', torch.allclose(t_w, p))
                 p.grad.mul_(t_w)
             wgrads.append(torch.norm(p.grad, p=2))
         wgrad_norm = torch.norm(torch.stack(wgrads), p=2) + 1.e-16
+
+        if return_result_of_ascent:
+            # retain parameters before ascent step
+            old_params = {}
+            for name, params in self.model.named_parameters():
+                old_params[name] = params.clone()
+
         for n, p in self.model.named_parameters():
             if p.grad is None:
                 continue
@@ -313,6 +341,18 @@ class ASAM:
             p.add_(eps)
         self.optimizer.zero_grad()
 
+        if return_result_of_ascent:
+            # retain parameters after ascent step
+            ascented_params = {}
+            for name, params in self.model.named_parameters():
+                ascented_params[name] = params.clone()
+            
+            # reload parameters from before ascent step in the model
+            for name, params in self.model.named_parameters():
+                params.data.copy_(old_params[name])
+            
+            return ascented_params
+
     @torch.no_grad()
     def descent_step(self):
         for n, p in self.model.named_parameters():
@@ -324,14 +364,34 @@ class ASAM:
 
 
 class SAM(ASAM):
+
+    def loss(self, data, labels, criterion):
+        model_clone = copy.deepcopy(self.model)
+        out = self.model.forward(data)
+        loss = criterion(out, torch.squeeze(labels, dim=1).long())
+        loss.backward()
+        ascented_params = self.ascent_step(return_result_of_ascent=True)
+        self.model.zero_grad()
+        for name, params in model_clone.named_parameters():
+            params.data.copy_(ascented_params[name])
+        preds = model_clone(data)
+        return criterion(preds, torch.squeeze(labels, dim=1).long())
+
     @torch.no_grad()
-    def ascent_step(self):
+    def ascent_step(self, return_result_of_ascent=False):
         grads = []
         for n, p in self.model.named_parameters():
             if p.grad is None:
                 continue
             grads.append(torch.norm(p.grad, p=2))
         grad_norm = torch.norm(torch.stack(grads), p=2) + 1.e-16
+
+        if return_result_of_ascent:
+            # retain parameters before ascent step
+            old_params = {}
+            for name, params in self.model.named_parameters():
+                old_params[name] = params.clone()
+
         for n, p in self.model.named_parameters():
             if p.grad is None:
                 continue
@@ -343,4 +403,19 @@ class SAM(ASAM):
             eps.mul_(self.rho / grad_norm)
             p.add_(eps)
         self.optimizer.zero_grad()
+
+        if return_result_of_ascent:
+            # retain parameters after ascent step
+            ascented_params = {}
+            for name, params in self.model.named_parameters():
+                ascented_params[name] = params.clone()
+            
+            # reload parameters from before ascent step in the model
+            for name, params in self.model.named_parameters():
+                params.data.copy_(old_params[name])
+            
+            return ascented_params
+
+
+
 
