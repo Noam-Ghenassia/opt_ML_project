@@ -105,7 +105,8 @@ class Net(nn.Module):
     def ASAM_train(self, dataset, n_epochs):
         """This method allows to train the neural network with the Adam optimizer and Asam minimizer."""
         #Essayer de mettre le learning rate schedulter (mis dans exemple samsung)
-        #Essayer de mettre modet.train() (Possible que ce soit non négligable, apparement permet de mettre layer en training mode)
+        #Essayer de mettre model.train() (Possible que ce soit non négligable, apparement permet de mettre layer en training mode)
+        
 
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(self.parameters())
@@ -114,7 +115,7 @@ class Net(nn.Module):
         
         for epoch in range(n_epochs):
 
-            #self.train() #ATTENTION
+            self.train() #ATTENTION
 
             running_loss = 0.0
             for i, data in enumerate(dataset, 0):
@@ -125,7 +126,8 @@ class Net(nn.Module):
                 
                 #Ascent Step
                 outputs = self.forward(inputs)
-                loss = criterion(outputs, labels)   # batch_loss.mean().backward() (Dans exemple, pk mean ?)
+                loss = criterion(outputs, labels)
+                loss = smooth_crossentropy(predictions, targets, smoothing=args.label_smoothing)
                 loss.mean().backward() #attention j'ai ajouté le .mean()
                 minimizer.ascent_step()
 
@@ -134,7 +136,8 @@ class Net(nn.Module):
                 minimizer.descent_step()
                 
                 # print statistics
-                running_loss += loss.item()
+                with torch.no_grad():
+                    running_loss += loss.sum().item()
                 if i % 2000 == 1999:    # print every 2000 mini-batches
                     print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
                     running_loss = 0.0    
@@ -150,12 +153,11 @@ class Net(nn.Module):
         optimizer = Adam(self.parameters())
         minimizer = SAM(optimizer, self, 0.5, 0.01) #Le model c'est la structure du NN
 
-        self.train() #ATTENTION
+        #self.train()
         
         for epoch in range(n_epochs):
 
-            #self.train() #ATTENTION
-
+            self.train()
             running_loss = 0.0
             for i, data in enumerate(dataset, 0):
                 # get the inputs; data is a list of [inputs, labels]
@@ -165,16 +167,17 @@ class Net(nn.Module):
 
                 #Ascent Step
                 outputs = self.forward(inputs)
-                loss = criterion(outputs, labels)   # batch_loss.mean().backward() (Dans exemple, pk mean ?)
+                loss = criterion(outputs, labels)
                 loss.mean().backward() #attention j'ai ajouté le .mean()
                 minimizer.ascent_step()
 
                 # Descent Step
-                criterion(self.forward(inputs), labels).mean().backward() #criterion(model(inputs), targets).mean().backward()
+                criterion(self.forward(inputs), labels).mean().backward()
                 minimizer.descent_step()
 
                 # print statistics
-                running_loss += loss.item()
+                with torch.no_grad():
+                    running_loss += loss.sum().item()
                 if i % 2000 == 1999:    # print every 2000 mini-batches
                     print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
                     running_loss = 0.0    
