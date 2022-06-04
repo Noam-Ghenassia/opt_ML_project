@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def perform_telep(net, alpha) :
+
+def perform_telep(net, alpha, teleport_biases) :
     """this function sends a given network to another, isomorphic network, following
     the teleportation vector alpha.
     
@@ -15,10 +17,11 @@ def perform_telep(net, alpha) :
     alpha.insert(0, torch.ones(net.layer_list[0][0].in_features))
     alpha.append(torch.ones(net.layer_list[-1][0].out_features))
     
-    alpha = [l for l in alpha]
+    alpha = [l.to(device) for l in alpha]
 
-    for layer in range(len(net.layer_list)) :
-        if net.layer_list[layer][0].bias is not None:
+    #for layer in range(len(net.layer_list)) :
+    for layer, _ in enumerate(net.layer_list) :
+        if net.layer_list[layer][0].bias is not None and teleport_biases:
                 
             # multiply the bias by the alpha value of the next layer :
             net.layer_list[layer][0].bias = \
@@ -28,8 +31,8 @@ def perform_telep(net, alpha) :
         # the input weights of a layer are divided by the alpha values, of
         # the corresponding layer, and the output weights are multiplied by
         # the alpha values of the next layer.
-        inverse_input_alpha_matrix = torch.inverse(torch.diag(alpha[layer]))
-        output_alpha_matrix = torch.diag(alpha[layer+1])
+        inverse_input_alpha_matrix = torch.inverse(torch.diag(alpha[layer])).to(device)
+        output_alpha_matrix = torch.diag(alpha[layer+1]).to(device)
         with torch.no_grad():
             net.layer_list[layer][0].weight.copy_(torch.einsum('ik, kl, lj -> ij',\
                 [output_alpha_matrix, net.layer_list[layer][0].weight, inverse_input_alpha_matrix]))
@@ -38,7 +41,7 @@ def perform_telep(net, alpha) :
     del alpha[0]
     del alpha[-1]
     
-def random_telep(net, low_bound=0.5, high_bound=1.5) :
+def random_telep(net, low_bound=0.5, high_bound=1.5, teleport_biases=True) :
     """this function performs a random (uniform) teleportation, with entries of the
     teleportation vector comprised between low_bound and high_bound.
     
@@ -53,4 +56,4 @@ def random_telep(net, low_bound=0.5, high_bound=1.5) :
         # divided by the corresponding value in the vector.
         alpha.append((high_bound - low_bound) * torch.rand(layer[0].out_features) + low_bound)
 
-    perform_telep(net, alpha)
+    perform_telep(net, alpha, teleport_biases)

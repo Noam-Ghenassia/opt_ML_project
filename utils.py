@@ -8,6 +8,8 @@ import math
 from collections import defaultdict
 import copy
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class Dataset_2D(ABC):
     """Abstract class for 2-classes datasets in 2 dimensions.
 
@@ -46,7 +48,7 @@ class Dataset_2D(ABC):
             (torch.tensor): a tensor with rows the datapoints, and columns the features.
             the first column contains the labels.
         """
-        return self.dataset
+        return self.dataset.to(device)
 
 class figure_8(Dataset_2D):
     """ This dataset consists of 2 classes : one of them consists of 2 circles with centers
@@ -100,7 +102,7 @@ class net(nn.Module):
     """A dense neural network with ReLU activation functions. The structure argument is a tuple
     whose n-th entry is the number of neurons in the n-th hidden layer.
     """
-    def __init__(self, structure=(10, 10, 10)):
+    def __init__(self, structure=(10, 10, 10), with_bias=True):
         #super(net, self).__init__()
         super().__init__()
         self.structure = structure
@@ -114,7 +116,7 @@ class net(nn.Module):
 
         for ii in range(len(self.structure)):
             self.layer_list.append(
-                self.hidden_layer(self.structure[ii] , self.structure[ii], use_batch_norm=False)
+                self.hidden_layer(self.structure[ii] , self.structure[ii], with_bias=with_bias, use_batch_norm=False)
             )
           
         self.layer_list.append(nn.Sequential(nn.Linear(structure[-1], 2, bias=False)))
@@ -124,8 +126,8 @@ class net(nn.Module):
             self.hidden_layers_list.append(self.layer_list[layer])
 
 
-    def hidden_layer(self,input, output, use_batch_norm=False):
-        linear = nn.Linear(input, output, bias=True)
+    def hidden_layer(self,input, output, with_bias=True, use_batch_norm=False):
+        linear = nn.Linear(input, output, bias=with_bias)
         relu = nn.ReLU()
         bn = nn.BatchNorm1d(output)
         if use_batch_norm:
@@ -271,11 +273,11 @@ class net(nn.Module):
         grid_y = np.meshgrid(x, y)[1].reshape(-1, 1)
         grid = np.concatenate([grid_x, grid_y], axis=1)
 
-        grid = torch.tensor(np.expand_dims(grid, axis=1)).float()
+        grid = torch.tensor(np.expand_dims(grid, axis=1)).float().to(device)
         out = self.forward(grid)
         out = torch.squeeze(out, axis=1)
         out = nn.Softmax(dim=1)(out)
-        out = out[: , 1].reshape(len(x), -1).detach().numpy()
+        out = out[: , 1].reshape(len(x), -1).detach().cpu().numpy()
         
         ax.contourf(np.meshgrid(x, y)[0], np.meshgrid(x, y)[1], out)
 
@@ -318,7 +320,6 @@ class ASAM:
             if 'weight' in n:
                 t_w[...] = p[...]
                 t_w.abs_().add_(self.eta)
-                print('jhb ', torch.allclose(t_w, p))
                 p.grad.mul_(t_w)
             wgrads.append(torch.norm(p.grad, p=2))
         wgrad_norm = torch.norm(torch.stack(wgrads), p=2) + 1.e-16
