@@ -14,6 +14,8 @@ _pycache_/
 settings.json
 test.cpython-39.pyc
 utils.cpython-39.pyc
+data/
+__pycache__/cifar.cpython-39.pyc
 
 # Local History for Visual Studio Code
 .history/
