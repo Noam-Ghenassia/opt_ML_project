@@ -61,7 +61,7 @@ class Net(nn.Module):
         self.name = name
 
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv1(x.to(device))))
         x = self.pool(F.relu(self.conv2(x)))
         x = torch.flatten(x, 1) # flatten all dimensions except batch
         x = F.relu(self.fc1(x))
@@ -88,8 +88,8 @@ class Net(nn.Module):
                 optimizer.zero_grad()
 
                 # forward + backward + optimize
-                outputs = self.forward(inputs)
-                loss = criterion(outputs, labels)
+                outputs = self.forward(inputs.to(device))
+                loss = criterion(outputs, labels.to(device))
                 loss.backward()
                 optimizer.step()
 
@@ -115,7 +115,7 @@ class Net(nn.Module):
         
         for epoch in range(n_epochs):
 
-            self.train() #ATTENTION
+            #self.train() #ATTENTION
 
             running_loss = 0.0
             for i, data in enumerate(dataset, 0):
@@ -125,14 +125,14 @@ class Net(nn.Module):
                 #optimizer.zero_grad()
                 
                 #Ascent Step
-                outputs = self.forward(inputs)
-                loss = criterion(outputs, labels)
-                loss = smooth_crossentropy(predictions, targets, smoothing=args.label_smoothing)
+                outputs = self.forward(inputs.to(device))
+                loss = criterion(outputs, labels.to(device))
+                #loss = smooth_crossentropy(predictions, targets, smoothing=args.label_smoothing)
                 loss.mean().backward() #attention j'ai ajouté le .mean()
                 minimizer.ascent_step()
 
                 # Descent Step
-                criterion(self.forward(inputs), labels).mean().backward() #criterion(model(inputs), targets).mean().backward()
+                criterion(self.forward(inputs.to(device)), labels.to(device)).mean().backward() #criterion(model(inputs), targets).mean().backward()
                 minimizer.descent_step()
                 
                 # print statistics
@@ -145,7 +145,7 @@ class Net(nn.Module):
         print('Finished Training')
                 
     def SAM_train(self, dataset, n_epochs):
-        """This method allows to train the neural network with the Adam optimizer and Asam minimizer."""
+        """This method allows to train the neural network with the Adam optimizer and sam minimizer."""
         #Essayer de mettre le learning rate schedulter (mis dans exemple samsung)
         #Essayer de mettre modet.train() (Possible que ce soit non négligable, apparement permet de mettre layer en training mode)
 
@@ -194,11 +194,11 @@ class Net(nn.Module):
             for data in dataset:
                 images, labels = data
                 # calculate outputs by running images through the network
-                outputs = self.forward(images)
+                outputs = self.forward(images.to(device))
                 # the class with the highest energy is what we choose as prediction
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
-                correct += (predicted == labels).sum().item()
+                correct += (predicted == labels.to(device)).sum().item()
 
         print(f'Accuracy of the network on the 10000 test images: {100 * correct // total} %')
         
@@ -212,7 +212,7 @@ class Net(nn.Module):
         with torch.no_grad():
             for data in dataset:
                 images, labels = data
-                outputs = self.forward(images)
+                outputs = self.forward(images.to(device))
                 _, predictions = torch.max(outputs, 1)
                 # collect the correct predictions for each class
                 for label, prediction in zip(labels, predictions):
