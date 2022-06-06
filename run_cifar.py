@@ -10,6 +10,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", default=200, type=int, help="Number of epochs.")
     parser.add_argument("--smoothing", default=0.1, type=float, help="Label smoothing.")
     parser.add_argument("--rho", default=0.5, type=float, help="Rho for ASAM and SAM")
+    parser.add_argument("--plot", default=True, type=bool, help="Wether to plot the accuracy or not")
     args = parser.parse_args()
     assert args.minimizer in ['ASAM', 'SAM', 'ADAM'], f"Invalid minimizer type. Please select ASAM, SAM or ADAM"
     assert args.model in ['Net', 'wrn28_10'], f"Invalid model. Please select Net or wrn28_10"
@@ -25,6 +26,6 @@ if __name__ == "__main__":
         net = Net().to(device)
     #Train with the chosen minimizer
     if(args.minimizer == 'ADAM') :
-        train_ADAM(trainloader, testloader, model=net, epochs=args.epochs)
+        train_ADAM(trainloader, testloader, model=net, epochs=args.epochs, plot=args.plot)
     else :
-        train_minimizer(trainloader, testloader, model=net, minimizer=eval(args.minimizer), epochs=args.epochs, rho_=args.rho, smoothing_=args.smoothing)
+        train_minimizer(trainloader, testloader, model=net, minimizer=eval(args.minimizer), epochs=args.epochs, rho_=args.rho, smoothing_=args.smoothing, plot=args.plot)

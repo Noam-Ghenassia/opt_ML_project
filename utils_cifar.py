@@ -72,7 +72,7 @@ class Net(nn.Module):
         x = self.fc3(x)
         return x
         
-def train_ADAM(train_loader, test_loader, model, epochs=200):
+def train_ADAM(train_loader, test_loader, model, epochs=200, plot=True):
     """
     This method allows to train the neural network on cifar10 with the Adam optimizer.
     It prints the training loss and accuracy, and the testing loss and accuracy
@@ -86,6 +86,8 @@ def train_ADAM(train_loader, test_loader, model, epochs=200):
     optimizer = Adam(model.parameters())
     
     best_accuracy = 0.
+    test_acc = []
+    train_acc = []
     for epoch in range(epochs):
         # Train
         model.train()
@@ -121,6 +123,7 @@ def train_ADAM(train_loader, test_loader, model, epochs=200):
             
         loss /= cnt
         accuracy *= 100. / cnt
+        train_acc.append(accuracy)
         print(f"Epoch: {epoch+1}, Train accuracy: {accuracy:6.2f} %, Train loss: {loss:8.5f}")
 
         # Test
@@ -140,10 +143,20 @@ def train_ADAM(train_loader, test_loader, model, epochs=200):
             accuracy *= 100. / cnt
         if best_accuracy < accuracy:
             best_accuracy = accuracy
+            
+        test_acc.append(accuracy)
         print(f"Epoch: {epoch+1}, Test accuracy:  {accuracy:6.2f} %, Test loss:  {loss:8.5f}")
-    print(f"Best test accuracy: {best_accuracy}")
+    print(f"Best test accuracy: {best_accuracy} %")
     
-def train_minimizer(train_loader, test_loader, model, minimizer=ASAM, epochs=200, rho_=0.5, smoothing_=0): 
+    if(plot) :
+        plt.plot(np.arange(1, epochs+1), train_acc, label='train')
+        plt.plot(np.arange(1, epochs+1), test_acc, label='test')
+        plt.legend()
+        plt.xlabel('epochs'); plt.ylabel('Accuracy (%)')
+        plt.title('Accuracy of '+type(model).__name__+' in function of the epoch on cifar10')
+        plt.show()
+    
+def train_minimizer(train_loader, test_loader, model, minimizer=ASAM, epochs=200, rho_=0.5, smoothing_=0, plot=True): 
     """
     This method allows to train the neural network on cifar10 with the SAM or ASAM minimizer.
     It prints the training loss and accuracy, and the testing loss and accuracy
@@ -172,6 +185,8 @@ def train_minimizer(train_loader, test_loader, model, minimizer=ASAM, epochs=200
         criterion = torch.nn.CrossEntropyLoss()
 
     best_accuracy = 0.
+    train_acc = []
+    test_acc = []
     for epoch in range(epochs):
         # Train
         model.train()
@@ -207,6 +222,7 @@ def train_minimizer(train_loader, test_loader, model, minimizer=ASAM, epochs=200
                     
         loss /= cnt
         accuracy *= 100. / cnt
+        train_acc.append(accuracy)
         print(f"Epoch: {epoch+1}, Train accuracy: {accuracy:6.2f} %, Train loss: {loss:8.5f}")
         scheduler.step()
 
@@ -227,9 +243,17 @@ def train_minimizer(train_loader, test_loader, model, minimizer=ASAM, epochs=200
             accuracy *= 100. / cnt
         if best_accuracy < accuracy:
             best_accuracy = accuracy
+        test_acc.append(accuracy)
         print(f"Epoch: {epoch+1}, Test accuracy:  {accuracy:6.2f} %, Test loss:  {loss:8.5f}")
-    print(f"Best test accuracy: {best_accuracy}")
+    print(f"Best test accuracy: {best_accuracy} %")
 
+    if(plot) :
+        plt.plot(np.arange(1, epochs+1), train_acc, label='train')
+        plt.plot(np.arange(1, epochs+1), test_acc, label='test')
+        plt.legend()
+        plt.xlabel('epochs'); plt.ylabel('Accuracy (%)')
+        plt.title('Accuracy of '+type(model).__name__+' in function of the epoch on cifar10')
+        plt.show()
 
 def test(dataset, model):
     """"
