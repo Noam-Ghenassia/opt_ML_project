@@ -13,8 +13,9 @@ Requirements :
 
 ## Training Example on CIFAR10
 
-We proposed a training example in which you can see the difference between ADAM optimizer, SAM and ASAM on CIFAR10.
-You have the choice of using a small neural network (Net) or to use a state-of-the-art neural network on cifar10 : ResNet (wrn28_10)
+To explore a concrete example of ASAM efficiency, we reproduced the training of ResNet (wrn28_10) on cifar10 using ASAM proposed by SAMSUNG.
+To compare its results with other optimizers, we proposed 3 possible choices : ADAM, ASAM or SAM.
+As ResNet may be hard to train, we also created a small neural network (called Net) able to train on cifar10, but using only few layers.
 
 **On Net :**
 
