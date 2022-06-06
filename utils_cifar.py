@@ -53,6 +53,7 @@ def load_cifar(batch_size=256, num_workers=2):
 
 
 class Net(nn.Module):
+    """Simple neural network able to work on cifar10"""
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
@@ -72,7 +73,15 @@ class Net(nn.Module):
         return x
         
 def train_ADAM(train_loader, test_loader, model, epochs=200):
-    """This method allows to train the neural network with the Adam optimizer."""
+    """
+    This method allows to train the neural network on cifar10 with the Adam optimizer.
+    It prints the training loss and accuracy, and the testing loss and accuracy
+        Inputs : *trainloader : Dataloader of the training set
+                 *testloader : Dataloader of the test set 
+                 *model : neural network architecture used
+                 *epochs : number of time we go trhough the dataset to train the model
+         Output : NONE
+    """
     criterion = nn.CrossEntropyLoss()
     optimizer = Adam(model.parameters())
     
@@ -135,12 +144,18 @@ def train_ADAM(train_loader, test_loader, model, epochs=200):
     print(f"Best test accuracy: {best_accuracy}")
     
 def train_minimizer(train_loader, test_loader, model, minimizer=ASAM, epochs=200, rho_=0.5, smoothing_=0): 
-    # Data Loader
-    #train_loader, test_loader = load_cifar(eval(args.dataset), args.batch_size)
-    #num_classes = 10 if args.dataset == 'CIFAR10' else 100
-
-    # Model
-    #model = wrn28_10(num_classes=10).cuda()
+    """
+    This method allows to train the neural network on cifar10 with the SAM or ASAM minimizer.
+    It prints the training loss and accuracy, and the testing loss and accuracy
+        Inputs : *trainloader : Dataloader of the training set
+                 *testloader : Dataloader of the test set 
+                 *model : neural network architecture used
+                 *epochs : number of time we go trhough the dataset to train the model
+                 *rho_ : Neighborhood size ρ>0
+                 *smoothing_ : smoothing factor for the LabelSmoothingCrossEntropy 
+                         (Use this to not punish model as harshly, such as when incorrect labels are expecte)
+         Output : NONE
+    """
 
     # Minimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1, 
@@ -217,7 +232,11 @@ def train_minimizer(train_loader, test_loader, model, minimizer=ASAM, epochs=200
 
 
 def test(dataset, model):
-    """"This method is to calculate the test accuracy"""
+    """"
+    This method is to calculate the test accuracy
+    Inputs : * dataset : dataloader of the test set
+             * model : model we want to use to test its accuracy
+    """
     correct = 0
     total = 0
     # since we're not training, we don't need to calculate the gradients for our outputs
@@ -234,7 +253,12 @@ def test(dataset, model):
     print(f'Accuracy of the network on the 10000 test images: {100 * correct // total} %')
 
 def test_classes(dataset, model, classes) :
-    """This method calculates the test accuracy for each class of the cifar10 dataset"""
+    """
+    This method calculates the test accuracy for each class of the cifar10 dataset
+    Inputs : * dataset : dataloader of the test set
+             * model : model we want to use to test its accuracy
+             * classes : The 10 different classes of cifar10
+    """
     # prepare to count predictions for each class
     correct_pred = {classname: 0 for classname in classes}
     total_pred = {classname: 0 for classname in classes}
@@ -257,5 +281,11 @@ def test_classes(dataset, model, classes) :
         print(f'Accuracy for class: {classname:5s} is {accuracy:.1f} %')
 
 def save_model(model, FILENAME, PATH_FILE='./') :
+    """
+    Function that saves the weights of the model in a file
+    Inputs : * model : model we want to save
+             * FILENAME : Name of the file created
+             * PATH_FILE : where the file will be stored
+    """
     path = PATH_FILE + str(FILENAME) + '.pth'
     torch.save(model.state_dict(), path)
