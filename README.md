@@ -21,28 +21,28 @@ As ResNet may be hard to train, we also created a small neural network (called N
 
 ADAM :
 ```
-python run_cifar.py --dataset CIFAR10 --minimizer ADAM --epochs 200
+python run_cifar.py --minimizer ADAM --epochs 200
 ```
 SAM:
 ```
-python run_cifar.py --dataset CIFAR10 --minimizer SAM --rho 0.05 --epochs 200
+python run_cifar.py --minimizer SAM --rho 0.05 --epochs 200
 ```
 ASAM :
 ```
-python run_cifar.py --dataset CIFAR10 --minimizer ASAM --rho 0.5 --epochs 200
+python run_cifar.py --minimizer ASAM --rho 0.5 --epochs 200
 ```
 
 **On wrn28_10 :**
 
 ADAM :
 ```
-python run_cifar.py --model wrn28_10 --dataset CIFAR10 --minimizer ADAM --epochs 100
+python run_cifar.py --model wrn28_10 --minimizer ADAM --epochs 100
 ```
 SAM:
 ```
-python run_cifar.py --model wrn28_10 --dataset CIFAR10 --minimizer SAM --rho 0.05 --epochs 100
+python run_cifar.py --model wrn28_10 --minimizer SAM --rho 0.05 --epochs 100
 ```
 ASAM :
 ```
-python run_cifar.py --model wrn28_10 --dataset CIFAR10 --minimizer ASAM --rho 0.5 --epochs 100
+python run_cifar.py --model wrn28_10 --minimizer ASAM --rho 0.5 --epochs 100
 ```
