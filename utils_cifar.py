@@ -117,7 +117,7 @@ def train_ADAM(train_loader, test_loader, model, epochs=200, plot=True):
             cnt += len(targets)
             
             if (i+1) % 100 == 0:    # print every 100 mini-batches
-                print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
+                print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / (100*len(targets)):.3f}')
                 running_loss = 0.0
             i+=1
             
@@ -216,10 +216,10 @@ def train_minimizer(train_loader, test_loader, model, minimizer=ASAM, epochs=200
             cnt += len(targets)
             
             if (i+1) % 100 == 0:    # print every 100 mini-batches
-                print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
+                print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / (100*len(targets)):.3f}')
                 running_loss = 0.0
             i +=1
-                    
+            
         loss /= cnt
         accuracy *= 100. / cnt
         train_acc.append(accuracy)
