@@ -20,6 +20,7 @@ binary_classification_example.png
 __pycache__/utils_cifar.cpython-39.pyc
 net.pth
 net_asam.pth
+net_sam.pth
 
 # Local History for Visual Studio Code
 .history/
