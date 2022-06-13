@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+
+import matplotlib.pyplot as plt
 import torch
 from torch import nn
 from torch.optim import Adam
@@ -7,8 +9,12 @@ from einops import rearrange
 import math
 from collections import defaultdict
 import copy
+import argparse
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+#fix the seed for reproductibility 
+torch.manual_seed(0)
 
 class Dataset_2D(ABC):
     """Abstract class for 2-classes datasets in 2 dimensions.
@@ -38,8 +44,8 @@ class Dataset_2D(ABC):
         ind_0 = torch.nonzero(labels==0)
         ind_1 = torch.nonzero(labels==1)
 
-        figure.plot(data[ind_0, 0], data[ind_0, 1], 'bo',
-                    data[ind_1, 0], data[ind_1, 1], 'ro')
+        figure.plot(data[ind_0, 0], data[ind_0, 1], 'b.',
+                    data[ind_1, 0], data[ind_1, 1], 'r.')
 
     def get_dataset(self):
         """Accessor method.
@@ -160,15 +166,12 @@ class net(nn.Module):
         batches_list.append(perm_dataset[-remainder-1:-1, :])
         return batches_list
 
-    def train(self, dataset, n_epochs):
+    def ADAM_train(self, dataset, n_epochs):
         """This method allows to train the neural network with the Adam optimizer."""
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(self.parameters())
 
         for epoch in range(n_epochs):
-
-            #if epoch % 30 == 0:
-                #print("epoch : ", epoch)
 
             batches = self.make_batches(dataset)
             for batch in batches :
@@ -179,67 +182,73 @@ class net(nn.Module):
                 optimizer.zero_grad()
                 out = self.forward(data)
                 loss = criterion(out, labels)
+
                 loss.backward()
                 optimizer.step()
     
     def ASAM_train(self, dataset, n_epochs):
         """This method allows to train the neural network with the Adam optimizer and Asam minimizer."""
-        #Essayer de mettre le learning rate schedulter (mis dans exemple samsung)
-        #Essayer de mettre modet.train() (Possible que ce soit non négligable, apparement permet de mettre layer en training mode)
 
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(self.parameters())
-        minimizer = ASAM(optimizer, self, 0.5, 0.01) #Le model c'est la structure du NN
+        minimizer = ASAM(optimizer, self, 0.5, 0.01)
+
+        # Learning Rate Scheduler
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, n_epochs)
 
         for epoch in range(n_epochs):
 
-            self.train() #ATTENTION
+            self.train()
 
             batches = self.make_batches(dataset)
             for batch in batches :
                 data = batch[:, 1:].float()
                 labels = batch[:, :1].long()
                 labels = rearrange(labels, 'h w -> (h w)')
-
-                #optimizer.zero_grad()
-                
-                #Ascent Step
-                out = self.forward(data)
-                loss = criterion(out, labels)   # batch_loss.mean().backward() (Dans exemple, pk mean ?)
-                loss.mean().backward() #attention j'ai ajouté le .mean()
-                minimizer.ascent_step()
-
-                # Descent Step
-                criterion(self.forward(data), labels).mean().backward() #criterion(model(inputs), targets).mean().backward()
-                minimizer.descent_step()
-
-    def SAM_train(self, dataset, n_epochs):
-        """This method allows to train the neural network with the Adam optimizer and Sam minimizer."""
-        criterion = nn.CrossEntropyLoss()
-        optimizer = Adam(self.parameters())
-        minimizer = SAM(optimizer, self, 0.5, 0.01) #Le model c'est la structure du NN
-
-        self.train()  #Attention
-
-        for epoch in range(n_epochs):
-
-            batches = self.make_batches(dataset)
-            for batch in batches :
-                data = batch[:, 1:].float()
-                labels = batch[:, :1].long()
-                labels = rearrange(labels, 'h w -> (h w)')
-
-                #optimizer.zero_grad()
                 
                 #Ascent Step
                 out = self.forward(data)
                 loss = criterion(out, labels)
                 loss.mean().backward()
-                minimizer.ascent_step() #attention j'ai ajouté le .mean()
+                minimizer.ascent_step()
 
                 # Descent Step
-                criterion(self.forward(data), labels).mean().backward() #attention j'ai ajouté le .mean()
+                criterion(self.forward(data), labels).mean().backward()
                 minimizer.descent_step()
+
+            scheduler.step()
+
+    def SAM_train(self, dataset, n_epochs):
+        """This method allows to train the neural network with the Adam optimizer and Sam minimizer."""
+        criterion = nn.CrossEntropyLoss()
+        optimizer = Adam(self.parameters())
+        minimizer = SAM(optimizer, self, 0.5, 0.01)
+
+        # Learning Rate Scheduler
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, n_epochs)
+
+        self.train()
+
+        for epoch in range(n_epochs):
+
+            batches = self.make_batches(dataset)
+            for batch in batches :
+                data = batch[:, 1:].float()
+                labels = batch[:, :1].long()
+                labels = rearrange(labels, 'h w -> (h w)')
+                
+                #Ascent Step
+                out = self.forward(data)
+                loss = criterion(out, labels)
+                loss.mean().backward()
+
+                minimizer.ascent_step()
+
+                # Descent Step
+                criterion(self.forward(data), labels).mean().backward()
+                minimizer.descent_step()
+
+            scheduler.step()
 
 
 
@@ -418,5 +427,71 @@ class SAM(ASAM):
             return ascented_params
 
 
+def test_performance_ADAM_ASAM_SAM(number_points, var, epochs):
+    """
+    Train three neural networks (with ADAM,ASAM and SAM) on a train dataset with variance (var).
+    Test the trained neural networks on different datasets with varing variances to compare ADAM, ASAM and SAM. 
+
+    INPUT : 
+    number_points : numbers_point_per_datasets
+    var : variance of one dataset
+    epochs : number of training epochs
+    """
+
+    #fix the seed for reproductibility 
+    torch.manual_seed(0)
+
+    variances = np.arange(1,80,0.5) #List of variances
+    errors_ADAM = [] #List to store errors during testing
+    errors_ASAM = [] #List to store errors during testing
+    errors_SAM = []  #List to store errors during testing
+
+    #creation of the dataset
+    train_dataset = figure_8(number_points, var)
+
+    #creation of test datasets
+    test_datasets = []
+    for variance in variances :
+        test_datasets.append(figure_8(number_points, variance))
+
+    #creation of the nets
+    net_ADAM = net()
+    net_ASAM = net()
+    net_SAM = net()
+
+    #training
+    print("training ADAM...")
+    net_ADAM.ADAM_train(train_dataset.get_dataset(), epochs)
+    print("training ASAM...")
+    net_ASAM.ASAM_train(train_dataset.get_dataset(), epochs)
+    print("training SAM...")
+    net_SAM.SAM_train(train_dataset.get_dataset(), epochs)
+
+    #testing
+    for test_dataset in test_datasets:
+        errors_ADAM.append(net_ADAM.test(test_dataset.get_dataset()))
+        errors_ASAM.append(net_ASAM.test(test_dataset.get_dataset()))
+        errors_SAM.append(net_SAM.test(test_dataset.get_dataset()))
+
+    #ploting
+    fig = plt.figure(figsize=(10,5))
+    plt.plot(variances, errors_ADAM, label='ADAM')
+    plt.plot(variances, errors_ASAM, label='ASAM')
+    plt.plot(variances, errors_SAM, label='SAM')
+    plt.xlabel('Variances')
+    plt.ylabel('Test Error')
+    plt.title(f"Generalization for ADAM, ASAM and SAM trained one dataset with variance = {var} and for {epochs} epochs for the training")
+    plt.legend()
+
+    plt.show()
+    
+
+def plot_dataset(variance, number_points = 2000):
+    """
+    Function to plot example of datasets
+    """
+    fig, ax = plt.subplots()
+    torch.manual_seed(0)
+    figure_8(number_points, variance).plot(ax)
 
 

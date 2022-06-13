@@ -46,3 +46,9 @@ ASAM :
 ```
 python run_cifar.py --model wrn28_10 --minimizer ASAM --rho 0.5 --epochs 100
 ```
+## Training on toy datsets
+
+Test the generalization of ASAM and SAM on simple datasets and compare them with the generalzation of ADAM optimizer. For this test, we construct a toy dataset drawn from a known distribution whose variance can be controlled. We train three different neural networks on the same toy dataset with a certain variance (--var) and with a fixed number of data points (--number_points). Once trained, we test these neural networks on dataset with different variances and we compare the test errors. These errors are reported on a graph (the output of the function : test_performance_ADAM_ASAM_SAM).
+
+python run_toy_datasets.py --number_points 2000 --var 10 --epochs 200
+```

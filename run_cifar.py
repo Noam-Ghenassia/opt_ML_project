@@ -1,7 +1,5 @@
 from utils_cifar import *
 
-seed = 0
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default='Net', type=str, help="Name of model architecure : Net or wrn28_10")
