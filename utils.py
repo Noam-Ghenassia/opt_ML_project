@@ -38,7 +38,7 @@ class Dataset_2D(ABC):
             figure (matplotlib.axes.Axes): the pyplot figure on which the dataset is plotted.
         """
         dataset = self.get_dataset()
-        data = dataset[:, 1:].float()
+        data = dataset[:, 1:].float().cpu()
         labels = dataset[:, :1].long()
         labels = rearrange(labels, 'h w -> (h w)')
         ind_0 = torch.nonzero(labels==0)

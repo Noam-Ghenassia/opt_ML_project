@@ -16,6 +16,11 @@ test.cpython-39.pyc
 utils.cpython-39.pyc
 data/
 __pycache__/cifar.cpython-39.pyc
+binary_classification_example.png
+__pycache__/utils_cifar.cpython-39.pyc
+net.pth
+net_asam.pth
+net_sam.pth
 
 # Local History for Visual Studio Code
 .history/
