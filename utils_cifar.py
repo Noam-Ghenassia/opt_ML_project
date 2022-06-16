@@ -72,7 +72,7 @@ class Net(nn.Module):
         x = self.fc3(x)
         return x
         
-def train_ADAM(train_loader, test_loader, model, epochs=200, plot=True):
+def train_ADAM(train_loader, test_loader, model, epochs=200, smoothing_=0, plot=True):
     """
     This method allows to train the neural network on cifar10 with the Adam optimizer.
     It prints the training loss and accuracy, and the testing loss and accuracy
@@ -82,8 +82,18 @@ def train_ADAM(train_loader, test_loader, model, epochs=200, plot=True):
                  *epochs : number of time we go trhough the dataset to train the model
          Output : NONE
     """
-    criterion = nn.CrossEntropyLoss()
+    
+    # Optimizer
     optimizer = Adam(model.parameters())
+
+    # Learning Rate Scheduler
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs)
+
+    # Loss Functions
+    if smoothing_!=0:
+        criterion = LabelSmoothingCrossEntropy(smoothing=smoothing_)
+    else:
+        criterion = torch.nn.CrossEntropyLoss()
     
     best_accuracy = 0.
     test_acc = []

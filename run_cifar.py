@@ -1,4 +1,5 @@
 from utils_cifar import *
+seed = 0
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -24,6 +25,6 @@ if __name__ == "__main__":
         net = Net().to(device)
     #Train with the chosen minimizer
     if(args.minimizer == 'ADAM') :
-        train_ADAM(trainloader, testloader, model=net, epochs=args.epochs, plot=args.plot)
+        train_ADAM(trainloader, testloader, model=net, epochs=args.epochs, smoothing_=args.smoothing, plot=args.plot)
     else :
         train_minimizer(trainloader, testloader, model=net, minimizer=eval(args.minimizer), epochs=args.epochs, rho_=args.rho, smoothing_=args.smoothing, plot=args.plot)
