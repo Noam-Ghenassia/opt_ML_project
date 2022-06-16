@@ -171,6 +171,9 @@ class net(nn.Module):
         criterion = nn.CrossEntropyLoss()
         optimizer = Adam(self.parameters())
 
+        # Learning Rate Scheduler
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, n_epochs)
+
         for epoch in range(n_epochs):
 
             batches = self.make_batches(dataset)
@@ -185,6 +188,8 @@ class net(nn.Module):
 
                 loss.backward()
                 optimizer.step()
+            
+            scheduler.step()
     
     def ASAM_train(self, dataset, n_epochs):
         """This method allows to train the neural network with the Adam optimizer and Asam minimizer."""
