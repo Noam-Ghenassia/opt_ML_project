@@ -1,6 +1,6 @@
 # opt_ML_project
 
-# Adaptive Sharpness-Aware Minimization (ASAM) for Scale-Invariant Learning of Deep Neural Networks
+# <center>Adaptive Sharpness-Aware Minimization (ASAM) for Scale-Invariant Learning of Deep Neural Networks<center>
 ### Damien Gomez Donoso, Noam Ghenassia, Théau Vannier
 
 ## Abstract
