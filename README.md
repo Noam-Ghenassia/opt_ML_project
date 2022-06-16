@@ -1,7 +1,5 @@
-# <p align="center">
-Adaptive Sharpness-Aware Minimization (ASAM) for Scale-Invariant Learning of Deep Neural Networks
+# Adaptive Sharpness-Aware Minimization (ASAM) for Scale-Invariant Learning of Deep Neural Networks
 Damien Gomez Donoso, Noam Ghenassia, Théau Vannier
-</p>
 
 ## Abstract
 
