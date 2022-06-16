@@ -2,6 +2,9 @@
 Damien Gomez Donoso, Noam Ghenassia, Théau Vannier
 
 ## Abstract
+To train robust models, we need a way of avoiding the optimization process to end in a minimum that does not generalize. This is usually the case of sharper minima. Indeed, one should keep in mind that due to finite size effects, the training loss landscape is not exactly equal to that of the actual distribution. As a result, sharper minima of the training loss function yield higher test loss values. 
+SAM idea is to constrained a sharpness term while minimizing the loss. However, minimizing the loss of a neural network can yield many combinations of weights that that give rise to the same neural network function. Some of these combinations of weights can have different sharpness terms. It has been shown that in this case, the SAM loss is falsely lead by the sharpness term.
+ASAM is an extension of the SAM minimizer that tries to take into account this equivalence of parameter vectors in its minimization process. To do so, it applies a transformation on the sharpness term such that it stays constant for parameter vectors that support the same function
 
 ## Getting started
 
